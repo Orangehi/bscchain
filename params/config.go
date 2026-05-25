@@ -212,7 +212,7 @@ var (
 	}
 
 	BSCChainConfig = &ChainConfig{
-		ChainID:             big.NewInt(56),
+		ChainID:             big.NewInt(10086), // ★ 私链 Chain ID
 		HomesteadBlock:      big.NewInt(0),
 		EIP150Block:         big.NewInt(0),
 		EIP155Block:         big.NewInt(0),
@@ -224,44 +224,44 @@ var (
 		MuirGlacierBlock:    big.NewInt(0),
 		RamanujanBlock:      big.NewInt(0),
 		NielsBlock:          big.NewInt(0),
-		MirrorSyncBlock:     big.NewInt(5184000),
-		BrunoBlock:          big.NewInt(13082000),
-		EulerBlock:          big.NewInt(18907621),
-		NanoBlock:           big.NewInt(21962149),
-		MoranBlock:          big.NewInt(22107423),
-		GibbsBlock:          big.NewInt(23846001),
-		PlanckBlock:         big.NewInt(27281024),
-		LubanBlock:          big.NewInt(29020050),
-		PlatoBlock:          big.NewInt(30720096),
-		BerlinBlock:         big.NewInt(31302048),
-		LondonBlock:         big.NewInt(31302048),
-		HertzBlock:          big.NewInt(31302048),
-		HertzfixBlock:       big.NewInt(34140700),
-		ShanghaiTime:        newUint64(1705996800), // 2024-01-23 08:00:00 AM UTC
-		KeplerTime:          newUint64(1705996800), // 2024-01-23 08:00:00 AM UTC
-		FeynmanTime:         newUint64(1713419340), // 2024-04-18 05:49:00 AM UTC
-		FeynmanFixTime:      newUint64(1713419340), // 2024-04-18 05:49:00 AM UTC
-		CancunTime:          newUint64(1718863500), // 2024-06-20 06:05:00 AM UTC
-		HaberTime:           newUint64(1718863500), // 2024-06-20 06:05:00 AM UTC
-		HaberFixTime:        newUint64(1727316120), // 2024-09-26 02:02:00 AM UTC
-		BohrTime:            newUint64(1727317200), // 2024-09-26 02:20:00 AM UTC
-		PascalTime:          newUint64(1742436600), // 2025-03-20 02:10:00 AM UTC
-		PragueTime:          newUint64(1742436600), // 2025-03-20 02:10:00 AM UTC
-		LorentzTime:         newUint64(1745903100), // 2025-04-29 05:05:00 AM UTC
-		MaxwellTime:         newUint64(1751250600), // 2025-06-30 02:30:00 AM UTC
-		FermiTime:           newUint64(1768357800), // 2026-01-14 02:30:00 AM UTC
-		OsakaTime:           newUint64(1777343400), // 2026-04-28 02:30:00 AM UTC
-		MendelTime:          newUint64(1777343400), // 2026-04-28 02:30:00 AM UTC
-		BPO1Time:            nil,                   // will be skipped in BSC
-		BPO2Time:            nil,                   // will be skipped in BSC
-		AmsterdamTime:       nil,
-		PasteurTime:         nil,
+		MirrorSyncBlock:     big.NewInt(0), // 私链从0全部激活
+		BrunoBlock:          big.NewInt(0),
+		EulerBlock:          big.NewInt(0),
+		NanoBlock:           big.NewInt(0),
+		MoranBlock:          big.NewInt(0),
+		GibbsBlock:          big.NewInt(0),
+		PlanckBlock:         big.NewInt(0),
+		LubanBlock:          big.NewInt(0),
+		PlatoBlock:          big.NewInt(0),
+		BerlinBlock:         big.NewInt(0),
+		LondonBlock:         big.NewInt(0),
+		HertzBlock:          big.NewInt(0),
+		HertzfixBlock:       big.NewInt(0),
+		ShanghaiTime:        newUint64(0),
+		KeplerTime:          newUint64(0),
+		FeynmanTime:         newUint64(0),
+		FeynmanFixTime:      newUint64(0),
+		CancunTime:          newUint64(0),
+		HaberTime:           newUint64(0),
+		HaberFixTime:        newUint64(0),
+		BohrTime:            newUint64(0),
+		PascalTime:          newUint64(0),
+		PragueTime:          newUint64(0),
+		LorentzTime:         newUint64(0),
+		MaxwellTime:         newUint64(0),
+		FermiTime:           newUint64(0),
+		// Osaka/Mendel 暂不激活，避免依赖尚未部署的新系统合约
+		OsakaTime:     nil,
+		MendelTime:    nil,
+		BPO1Time:      nil,
+		BPO2Time:      nil,
+		AmsterdamTime: nil,
+		PasteurTime:   nil,
 
 		Parlia: &ParliaConfig{},
 		BlobScheduleConfig: &BlobScheduleConfig{
 			Cancun: DefaultCancunBlobConfig,
 			Prague: DefaultPragueBlobConfigBSC,
-			Osaka:  DefaultOsakaBlobConfigBSC,
 		},
 	}
 
@@ -669,7 +669,7 @@ var (
 // NetworkNames are user friendly names to use in the chain spec banner.
 var NetworkNames = map[string]string{
 	MainnetChainConfig.ChainID.String(): "mainnet",
-	BSCChainConfig.ChainID.String():     "bsc",
+	BSCChainConfig.ChainID.String():     "mychain", // Chain ID: 10086
 	ChapelChainConfig.ChainID.String():  "chapel",
 	RialtoChainConfig.ChainID.String():  "rialto",
 }
@@ -1140,7 +1140,7 @@ func (c *ChainConfig) NeedBadSharedStorage(num *big.Int) bool {
 		return false
 	}
 
-	if c.ChainID.Cmp(big.NewInt(56)) == 0 && num.Cmp(big.NewInt(33851236)) == 0 {
+	if c.ChainID.Cmp(big.NewInt(10086)) == 0 && num.Cmp(big.NewInt(33851236)) == 0 {
 		return true
 	}
 
