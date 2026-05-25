@@ -2,7 +2,6 @@ package parlia
 
 import (
 	"bytes"
-	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -25,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/gopool"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	cmath "github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
@@ -1963,51 +1961,18 @@ func (p *Parlia) Close() error {
 
 // ==========================  interaction with contract/account =========
 
+var localValidators = []common.Address{
+	common.HexToAddress("0x572c2145ec256513b9dd03aab034a5dce34f26a2"), // 验证者1
+	common.HexToAddress("0x33d017b7060d1772b7f0fcdd3fc25753fe5a7c25"), // 验证者2
+}
+
 // getCurrentValidators get current validators
+// ★ 私链改造：固定返回两个验证者地址，禁用质押选举，跳过合约调用
 func (p *Parlia) getCurrentValidators(blockHash common.Hash, blockNum *big.Int) ([]common.Address, map[common.Address]*types.BLSPublicKey, error) {
-	// block
-	blockNr := rpc.BlockNumberOrHashWithHash(blockHash, false)
 
-	if !p.chainConfig.IsLuban(blockNum) {
-		validators, err := p.getCurrentValidatorsBeforeLuban(blockHash, blockNum)
-		return validators, nil, err
-	}
-
-	// method
-	method := "getMiningValidators"
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // cancel when we are finished consuming integers
-
-	data, err := p.validatorSetABI.Pack(method)
-	if err != nil {
-		log.Error("Unable to pack tx for getMiningValidators", "error", err)
-		return nil, nil, err
-	}
-	// call
-	msgData := (hexutil.Bytes)(data)
-	toAddress := common.HexToAddress(systemcontracts.ValidatorContract)
-	gas := (hexutil.Uint64)(uint64(math.MaxUint64 / 2))
-	result, err := p.ethAPI.Call(ctx, ethapi.TransactionArgs{
-		Gas:  &gas,
-		To:   &toAddress,
-		Data: &msgData,
-	}, &blockNr, nil, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var valSet []common.Address
-	var voteAddrSet []types.BLSPublicKey
-	if err := p.validatorSetABI.UnpackIntoInterface(&[]interface{}{&valSet, &voteAddrSet}, method, result); err != nil {
-		return nil, nil, err
-	}
-
-	voteAddrMap := make(map[common.Address]*types.BLSPublicKey, len(valSet))
-	for i := 0; i < len(valSet); i++ {
-		voteAddrMap[valSet[i]] = &(voteAddrSet)[i]
-	}
-	return valSet, voteAddrMap, nil
+	// BLS 投票地址在私链中不使用，返回空 map
+	voteAddrMap := make(map[common.Address]*types.BLSPublicKey)
+	return localValidators, voteAddrMap, nil
 }
 
 func (p *Parlia) isIntentionalDelayMining(chain consensus.ChainHeaderReader, header *types.Header) (bool, error) {
