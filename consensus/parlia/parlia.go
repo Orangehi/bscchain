@@ -99,6 +99,12 @@ var (
 	intentionalDelayMiningCounter     = metrics.NewRegisteredCounter("parlia/intentionalDelayMining", nil)
 	attestationVoteCountGauge         = metrics.NewRegisteredGauge("parlia/attestation/voteCount", nil)
 
+	// ★ 私链固定验证者列表，修改节点地址只需改这里
+	localValidators = []common.Address{
+		common.HexToAddress("0x572c2145ec256513b9dd03aab034a5dce34f26a2"), // 验证者1
+		common.HexToAddress("0x33d017b7060d1772b7f0fcdd3fc25753fe5a7c25"), // 验证者2
+	}
+
 	systemContracts = map[common.Address]bool{
 		common.HexToAddress(systemcontracts.ValidatorContract):          true,
 		common.HexToAddress(systemcontracts.SlashContract):              true,
@@ -1278,6 +1284,8 @@ func (p *Parlia) verifyTurnLength(chain consensus.ChainHeaderReader, header *typ
 func (p *Parlia) distributeFinalityReward(chain consensus.ChainHeaderReader, state vm.StateDB, header *types.Header,
 	cx core.ChainContext, txs *[]*types.Transaction, receipts *[]*types.Receipt, systemTxs *[]*types.Transaction,
 	usedGas *uint64, mining bool, tracer *tracing.Hooks) error {
+	// 禁用 BLS 投票额外奖励
+	return nil
 	currentHeight := header.Number.Uint64()
 	if currentHeight%finalityRewardInterval != 0 {
 		return nil
@@ -1448,11 +1456,8 @@ func (p *Parlia) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		}
 
 		if !signedRecently {
-			log.Trace("slash validator", "block hash", header.Hash(), "address", spoiledVal)
-			err = p.slash(spoiledVal, state, header, cx, txs, receipts, systemTxs, usedGas, false, tracer)
-			if err != nil {
-				log.Error("slash validator failed", "block hash", header.Hash(), "address", spoiledVal, "err", err)
-			}
+			// 禁用 slash 惩罚，私链节点固定，无需惩罚
+			log.Trace("skip slash validator (disabled in private chain)", "block hash", header.Hash(), "address", spoiledVal)
 		}
 	}
 
@@ -1961,13 +1966,8 @@ func (p *Parlia) Close() error {
 
 // ==========================  interaction with contract/account =========
 
-var localValidators = []common.Address{
-	common.HexToAddress("0x572c2145ec256513b9dd03aab034a5dce34f26a2"), // 验证者1
-	common.HexToAddress("0x33d017b7060d1772b7f0fcdd3fc25753fe5a7c25"), // 验证者2
-}
-
 // getCurrentValidators get current validators
-// ★ 私链改造：固定返回两个验证者地址，禁用质押选举，跳过合约调用
+// 固定返回两个验证者地址，禁用质押选举，跳过合约调用
 func (p *Parlia) getCurrentValidators(blockHash common.Hash, blockNum *big.Int) ([]common.Address, map[common.Address]*types.BLSPublicKey, error) {
 
 	// BLS 投票地址在私链中不使用，返回空 map
@@ -1991,36 +1991,19 @@ func (p *Parlia) isIntentionalDelayMining(chain consensus.ChainHeaderReader, hea
 }
 
 // distributeIncoming distributes system incoming of the block
+// 禁用系统池抽成和 staking 合约分发，手续费 100% 直接给出块节点
 func (p *Parlia) distributeIncoming(val common.Address, state vm.StateDB, header *types.Header, chain core.ChainContext,
 	txs *[]*types.Transaction, receipts *[]*types.Receipt, receivedTxs *[]*types.Transaction, usedGas *uint64, mining bool, tracer *tracing.Hooks) error {
 	coinbase := header.Coinbase
-
-	doDistributeSysReward := !p.chainConfig.IsKepler(header.Number, header.Time) &&
-		state.GetBalance(common.HexToAddress(systemcontracts.SystemRewardContract)).Cmp(maxSystemBalance) < 0
-	if doDistributeSysReward {
-		balance := state.GetBalance(consensus.SystemAddress)
-		rewards := new(uint256.Int)
-		rewards = rewards.Rsh(balance, systemRewardPercent)
-		if rewards.Cmp(common.U2560) > 0 {
-			state.SetBalance(consensus.SystemAddress, balance.Sub(balance, rewards), tracing.BalanceChangeUnspecified)
-			state.AddBalance(coinbase, rewards, tracing.BalanceChangeUnspecified)
-			err := p.distributeToSystem(rewards.ToBig(), state, header, chain, txs, receipts, receivedTxs, usedGas, mining, tracer)
-			if err != nil {
-				return err
-			}
-			log.Trace("distribute to system reward pool", "block hash", header.Hash(), "amount", rewards)
-		}
-	}
-
 	balance := state.GetBalance(consensus.SystemAddress)
 	if balance.Cmp(common.U2560) <= 0 {
 		return nil
 	}
-
+	// 手续费全额直接转给出块节点，不抽系统奖励池
 	state.SetBalance(consensus.SystemAddress, common.U2560, tracing.BalanceDecreaseBSCDistributeReward)
 	state.AddBalance(coinbase, balance, tracing.BalanceIncreaseBSCDistributeReward)
-	log.Trace("distribute to validator contract", "block hash", header.Hash(), "amount", balance)
-	return p.distributeToValidator(balance.ToBig(), val, state, header, chain, txs, receipts, receivedTxs, usedGas, mining, tracer)
+	log.Trace("distribute fee to coinbase", "block hash", header.Hash(), "coinbase", coinbase, "amount", balance)
+	return nil
 }
 
 // slash spoiled validators
