@@ -1967,11 +1967,14 @@ func (p *Parlia) Close() error {
 // ==========================  interaction with contract/account =========
 
 // getCurrentValidators get current validators
-// 固定返回两个验证者地址，禁用质押选举，跳过合约调用
+// ★ 私链改造：固定返回两个验证者地址，BLS公钥用零值占位，禁用质押选举
 func (p *Parlia) getCurrentValidators(blockHash common.Hash, blockNum *big.Int) ([]common.Address, map[common.Address]*types.BLSPublicKey, error) {
-
-	// BLS 投票地址在私链中不使用，返回空 map
-	voteAddrMap := make(map[common.Address]*types.BLSPublicKey)
+	var zeroBlsKey types.BLSPublicKey // 48字节全0，私链不需要真实BLS密钥
+	voteAddrMap := make(map[common.Address]*types.BLSPublicKey, len(localValidators))
+	for _, addr := range localValidators {
+		key := zeroBlsKey // 每个验证者独立拷贝，避免共享指针
+		voteAddrMap[addr] = &key
+	}
 	return localValidators, voteAddrMap, nil
 }
 
